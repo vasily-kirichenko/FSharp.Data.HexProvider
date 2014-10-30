@@ -14,11 +14,11 @@ module internal HexParser =
 
     let parseString (hex: string) =
         if hex.Length % 2 = 1 then
-            failwith "The binary key cannot have an odd number of digits"
+            failwith "Hex string cannot have an odd number of digits"
 
         let hex = hex.ToUpper()
         
-        if not (Regex.IsMatch (hex, @"^[0-9A-F]+$")) then
+        if not (Regex.IsMatch (hex, @"^(0[xX])?[0-9A-F]+$")) then
             failwith "Hex string contains invalid chars"
 
         let arr = Array.zeroCreate (hex.Length >>> 1)
@@ -39,9 +39,8 @@ type HexProvider (_config : TypeProviderConfig) as self =
         let root = ProvidedTypeDefinition(asm, ns, typeName, Some typeof<obj>, HideObjectMethods = true)
         let hexString = args.[0] :?> string
         let arr = HexParser.parseString hexString
-        let myProp = ProvidedProperty("Value", typeof<byte[]>, IsStatic = true,
-                                       GetterCode = (fun _ -> <@@ arr @@>))
-        root.AddMember(myProp)
+        let valueProp = ProvidedProperty("Value", typeof<byte[]>, IsStatic = true, GetterCode = (fun _ -> <@@ arr @@>))
+        root.AddMember(valueProp)
         root
     )
 
