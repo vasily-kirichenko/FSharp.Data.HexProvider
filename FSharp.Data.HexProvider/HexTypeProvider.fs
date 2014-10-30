@@ -17,10 +17,10 @@ module internal HexParser =
             failwith "Hex string cannot have an odd number of digits"
 
         let hex = hex.ToUpper()
-        
-        if not (Regex.IsMatch (hex, @"^(0[xX])?[0-9A-F]+$")) then
+        let m = Regex.Match (hex, @"^(0[xX])?(?<hex>[0-9A-F]+)$")
+        if not m.Success then
             failwith "Hex string contains invalid chars"
-
+        let hex = m.Groups.["hex"].Value
         let arr = Array.zeroCreate (hex.Length >>> 1)
         for i = 0 to arr.Length - 1 do
             arr.[i] <- byte ((getHexVal (hex.[i <<< 1]) <<< 4) + (getHexVal (hex.[(i <<< 1) + 1])))
