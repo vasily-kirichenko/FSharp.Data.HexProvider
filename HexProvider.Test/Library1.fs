@@ -2,8 +2,10 @@
 
 open FSharp.Data
 
-let a1 = Hex<"0101">.Value
-let md5 = Hex<"08494b448aa5b1de963731c21344f803">.Value
-let sha1 = Sha1<"08494b448aa5b1de963731c21344f80301020304">.Value
-let wrongLen = Hex<"011">
-let wrongChars = Hex<"0p">.Value
+type TwoBytes = Hex<2>
+
+let a1 = TwoBytes.Parse<"0101">()
+let md5 = Hex<20>.Parse<"08494b448aa5b1de963731c21344f803">()
+let sha1 = Hex<20>.Parse<"08494b448aa5b1de963731c21344f80301020304">()
+let wrongLen = Hex<2>.Parse<"011">()
+let wrongChars = Hex<1>.Parse<"0p">()

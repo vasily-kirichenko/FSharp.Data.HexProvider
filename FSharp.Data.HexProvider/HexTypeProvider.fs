@@ -13,14 +13,12 @@ module internal HexParser =
         //For uppercase A-F letters:
         v - (if v < 58 then 48 else 55)
 
-    let parseString (hashLength: int option) (hex: string) =
+    let parseString (hashLength: int) (hex: string) =
         if hex.Length % 2 = 1 then
             failwith "Hex string cannot have an odd number of digits"
 
-        match hashLength with
-        | Some x when hex.Length / 2 <> x ->
-            failwithf "Hex string must be of length %d." (x * 2)
-        | _ -> ()
+        if hex.Length / 2 <> hashLength then
+            failwithf "Hex string must be of length %d." (hashLength * 2)
 
         let hex = hex.ToUpper()
         let m = Regex.Match (hex, @"^(0[xX])?(?<hex>[0-9A-F]+)$")
@@ -39,41 +37,24 @@ type HexProvider (_config: TypeProviderConfig) as self =
     let ns = "FSharp.Data"
     let asm = Assembly.GetExecutingAssembly()
     let hexType = ProvidedTypeDefinition(asm, ns, "Hex", Some typeof<obj>, HideObjectMethods = true)
-    let parameters = [ProvidedStaticParameter("HexString", typeof<string>)]
+    let typeParams = [ProvidedStaticParameter("LenghtInBytes", typeof<int>)]
     let cache = new MemoryCache("HexProvider")
 
-    do hexType.DefineStaticParameters(parameters, fun typeName args ->
+    do hexType.DefineStaticParameters(typeParams, fun typeName args ->
         let value = 
             lazy
                 let root = ProvidedTypeDefinition(asm, ns, typeName, Some typeof<obj>, HideObjectMethods = true)
-                let hexString = args.[0] :?> string
-                let arr = HexParser.parseString None hexString
-                let valueProp = ProvidedProperty("Value", typeof<byte[]>, IsStatic = true, GetterCode = (fun _ -> <@@ arr @@>))
-                root.AddMember(valueProp)
-                root
-        cache.GetOrAdd (typeName, value))
+                let lengthInBytes = args.[0] :?> int
+                let methodParams = [ProvidedStaticParameter("HexString", typeof<string>)]
+                let m = ProvidedMethod ("Parse", [], typeof<string>, IsStaticMethod = true)
+                m.DefineStaticParameters(methodParams, (fun nm margs ->
+                    let hexString = margs.[0] :?> string
+                    let arr = HexParser.parseString lengthInBytes hexString
+                    let m2 = ProvidedMethod(nm, [], typeof<byte[]>, IsStaticMethod = true, InvokeCode = fun _ -> <@@ arr @@>)
+                    root.AddMember m2
+                    m2))
 
-    do self.AddNamespace(ns, [hexType])
-       self.Disposing.Add <| fun _ -> cache.Dispose()
-
-[<TypeProvider>]
-type Sha1Provider (_config: TypeProviderConfig) as self =
-    inherit TypeProviderForNamespaces()
-
-    let ns = "FSharp.Data"
-    let asm = Assembly.GetExecutingAssembly()
-    let hexType = ProvidedTypeDefinition(asm, ns, "Sha1", Some typeof<obj>, HideObjectMethods = true)
-    let parameters = [ProvidedStaticParameter("HexString", typeof<string>)]
-    let cache = new MemoryCache("Sha1Provider")
-
-    do hexType.DefineStaticParameters(parameters, fun typeName args ->
-        let value = 
-            lazy
-                let root = ProvidedTypeDefinition(asm, ns, typeName, Some typeof<obj>, HideObjectMethods = true)
-                let hexString = args.[0] :?> string
-                let arr = HexParser.parseString (Some 20) hexString
-                let valueProp = ProvidedProperty("Value", typeof<byte[]>, IsStatic = true, GetterCode = (fun _ -> <@@ arr @@>))
-                root.AddMember(valueProp)
+                root.AddMember m
                 root
         cache.GetOrAdd (typeName, value))
 
